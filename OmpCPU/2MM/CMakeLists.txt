@@ -7,4 +7,4 @@ set(SRC_FILES
 
 add_executable(2MM ${SRC_FILES})
 
-install(TARGETS 2MM DESTINATION PolybenchGPU)
+install(TARGETS 2MM DESTINATION OMPCPU)
