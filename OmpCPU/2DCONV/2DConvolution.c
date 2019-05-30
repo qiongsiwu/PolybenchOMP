@@ -68,6 +68,39 @@ void conv2D(DATA_TYPE* A, DATA_TYPE* B) {
     }
 }
 
+
+void conv2D_omp(DATA_TYPE* A, DATA_TYPE* B) {
+    int i, j;
+    DATA_TYPE c11, c12, c13, c21, c22, c23, c31, c32, c33;
+
+    c11 = +0.2;
+    c21 = +0.5;
+    c31 = -0.8;
+    c12 = -0.3;
+    c22 = +0.6;
+    c32 = -0.9;
+    c13 = +0.4;
+    c23 = +0.7;
+    c33 = +0.10;
+
+#pragma omp parallel for schedule(static, 1024)
+    for (i = 1; i < NI - 1; ++i)  // 0
+    {
+        for (j = 1; j < NJ - 1; ++j)  // 1
+        {
+            B[i * NJ + j] = c11 * A[(i - 1) * NJ + (j - 1)] +
+                            c12 * A[(i + 0) * NJ + (j - 1)] +
+                            c13 * A[(i + 1) * NJ + (j - 1)] +
+                            c21 * A[(i - 1) * NJ + (j + 0)] +
+                            c22 * A[(i + 0) * NJ + (j + 0)] +
+                            c23 * A[(i + 1) * NJ + (j + 0)] +
+                            c31 * A[(i - 1) * NJ + (j + 1)] +
+                            c32 * A[(i + 0) * NJ + (j + 1)] +
+                            c33 * A[(i + 1) * NJ + (j + 1)];
+        }
+    }
+}
+
 void init(DATA_TYPE* A) {
     int i, j;
 
@@ -78,14 +111,14 @@ void init(DATA_TYPE* A) {
     }
 }
 
-void compareResults(DATA_TYPE* B, DATA_TYPE* B_outputFromGpu) {
+void compareResults(DATA_TYPE* B, DATA_TYPE* B_outputFromOMP) {
     int i, j, fail;
     fail = 0;
 
     // Compare a and b
     for (i = 1; i < (NI - 1); i++) {
         for (j = 1; j < (NJ - 1); j++) {
-            if (percentDiff(B[i * NJ + j], B_outputFromGpu[i * NJ + j]) >
+            if (percentDiff(B[i * NJ + j], B_outputFromOMP[i * NJ + j]) >
                 PERCENT_DIFF_ERROR_THRESHOLD) {
                 fail++;
             }
@@ -105,11 +138,11 @@ int main(int argc, char* argv[]) {
 
     DATA_TYPE* A;
     DATA_TYPE* B;
-    DATA_TYPE* B_outputFromGpu;
+    DATA_TYPE* B_outputFromOMP;
 
     A = (DATA_TYPE*)malloc(NI * NJ * sizeof(DATA_TYPE));
     B = (DATA_TYPE*)malloc(NI * NJ * sizeof(DATA_TYPE));
-    B_outputFromGpu = (DATA_TYPE*)malloc(NI * NJ * sizeof(DATA_TYPE));
+    B_outputFromOMP = (DATA_TYPE*)malloc(NI * NJ * sizeof(DATA_TYPE));
 
     // initialize the arrays
     init(A);
@@ -119,11 +152,16 @@ int main(int argc, char* argv[]) {
     t_end = rtclock();
     fprintf(stdout, "CPU Runtime: %0.6lfs\n", t_end - t_start);  //);
 
-    compareResults(B, B_outputFromGpu);
+    t_start = rtclock();
+    conv2D_omp(A, B_outputFromOMP);
+    t_end = rtclock();
+    fprintf(stdout, "OMP Runtime: %0.6lfs\n", t_end - t_start);  //);
+    
+    compareResults(B, B_outputFromOMP);
 
     free(A);
     free(B);
-    free(B_outputFromGpu);
+    free(B_outputFromOMP);
 
     return 0;
 }
