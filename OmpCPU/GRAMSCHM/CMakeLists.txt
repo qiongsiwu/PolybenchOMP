@@ -7,4 +7,6 @@ set(SRC_FILES
 
 add_executable(GRAMSCHM ${SRC_FILES})
 
+target_link_libraries(GRAMSCHM m)
+
 install(TARGETS GRAMSCHM DESTINATION OMPCPU)
