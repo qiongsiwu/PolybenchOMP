@@ -83,7 +83,7 @@ void syr2k_omp(DATA_TYPE *A, DATA_TYPE *B, DATA_TYPE *C) {
         }
     }
 
-#pragma omp parallel for private(i, j) 
+#pragma omp parallel for private(i, j, k) 
     for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
             for (k = 0; k < M; k++) {
