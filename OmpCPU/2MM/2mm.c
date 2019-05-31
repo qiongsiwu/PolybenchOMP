@@ -155,14 +155,14 @@ int main(int argc, char** argv) {
     init_array(A, B, C, D);
 
     t_start = rtclock();
-    mm2_cpu(A, B, C, D, E);
-    t_end = rtclock();
-    fprintf(stdout, "CPU Runtime: %0.6lfs\n", t_end - t_start);
-    
-    t_start = rtclock();
     mm2_omp(A, B, C, D, E_outputFromOMP);
     t_end = rtclock();
     fprintf(stdout, "OMP Runtime: %0.6lfs\n", t_end - t_start);
+
+    t_start = rtclock();
+    mm2_cpu(A, B, C, D, E);
+    t_end = rtclock();
+    fprintf(stdout, "CPU Runtime: %0.6lfs\n", t_end - t_start);
 
     compareResults(E, E_outputFromOMP);
 
