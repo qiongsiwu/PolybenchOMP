@@ -14,6 +14,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
+#include <omp.h>
 
 #include "../../common/polybenchUtilFuncts.h"
 
@@ -83,7 +84,7 @@ void conv2D_omp(DATA_TYPE* A, DATA_TYPE* B) {
     c23 = +0.7;
     c33 = +0.10;
 
-#pragma omp parallel for schedule(static, 1024)
+#pragma omp parallel for private(i, j)
     for (i = 1; i < NI - 1; ++i)  // 0
     {
         for (j = 1; j < NJ - 1; ++j)  // 1
@@ -144,19 +145,17 @@ int main(int argc, char* argv[]) {
     B = (DATA_TYPE*)malloc(NI * NJ * sizeof(DATA_TYPE));
     B_outputFromOMP = (DATA_TYPE*)malloc(NI * NJ * sizeof(DATA_TYPE));
 
-    // initialize the arrays
     init(A);
+    
+    t_start = rtclock();
+    conv2D_omp(A, B_outputFromOMP);
+    t_end = rtclock();
+    fprintf(stdout, "OMP Runtime: %0.6lfs\n", t_end - t_start);  //);
 
     t_start = rtclock();
     conv2D(A, B);
     t_end = rtclock();
     fprintf(stdout, "CPU Runtime: %0.6lfs\n", t_end - t_start);  //);
-
-    t_start = rtclock();
-    conv2D_omp(A, B_outputFromOMP);
-    t_end = rtclock();
-    fprintf(stdout, "OMP Runtime: %0.6lfs\n", t_end - t_start);  //);
-    
     compareResults(B, B_outputFromOMP);
 
     free(A);
