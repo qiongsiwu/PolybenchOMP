@@ -134,7 +134,7 @@ int main() {
     t_start = rtclock();
     syr2k_omp(A, B, C_outputFromOmp);
     t_end = rtclock();
-    fprintf(stdout, "GPU Runtime: %0.6lfs\n", t_end - t_start);
+    fprintf(stdout, "OMP Runtime: %0.6lfs\n", t_end - t_start);
 
     init_arrays(A, B, C);
     t_start = rtclock();
