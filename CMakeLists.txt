@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.1)
 project(PolybenchOMP)
 
+# Options for target offloading
+option(RUN_OFFLOAD_GPU "Turn on target offloading when possible" ON)
+if (RUN_OFFLOAD_GPU)
+       message("Target offloading option turned on. ")
+endif()
+
 # Options for the benchmark size
 option(RUN_TEST "Compare with CPU execution" OFF)
 if(RUN_TEST)
@@ -54,3 +60,4 @@ if (OPENMP_FOUND)
 endif(OPENMP_FOUND)
 
 add_subdirectory(OmpCPU)
+add_subdirectory(OmpGPU)
