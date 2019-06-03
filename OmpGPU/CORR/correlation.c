@@ -18,12 +18,12 @@
 #define BENCHMARK_NAME "CORR"
 
 // define the error threshold for the results "not matching"
-#define PERCENT_DIFF_ERROR_THRESHOLD 1.10//1.05
+#define PERCENT_DIFF_ERROR_THRESHOLD 1.05
 
 #define GPU_DEVICE 0
 
 /* Problem size */
-#define SIZE 1024//2048
+#define SIZE 2048
 #define M SIZE
 #define N SIZE
 
@@ -44,12 +44,12 @@
 #define DIM_THREAD_BLOCK_KERNEL_4_Y 1
 
 /* OpenMP num teams and team sizes */
-#define NUM_TEAMS 128 
+#define NUM_TEAMS 2048
 
-#define TEAM_SIZE_1 128 
-#define TEAM_SIZE_2 128
-#define TEAM_SIZE_3 128
-#define TEAM_SIZE_4 128
+#define TEAM_SIZE_1 1024
+#define TEAM_SIZE_2 1024
+#define TEAM_SIZE_3 1024
+#define TEAM_SIZE_4 1024
 
 #define sqrt_of_array_cell(x, j) sqrt(x[j])
 
@@ -129,72 +129,87 @@ void correlation_omp(DATA_TYPE *data, DATA_TYPE *mean, DATA_TYPE *stddev,
                      DATA_TYPE *symmat) {
     int i, j, j1, j2;
 
-    // Determine mean of column vectors of input data matrix
-#pragma omp target map(to: data[0:(M + 1) * (N + 1)]) \
-                   map(from: mean[0:(M + 1)])
-#pragma omp teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE_1)
+#pragma omp target data map(to                                                 \
+                            : data [0:(M + 1) * (N + 1)])                      \
+    map(alloc                                                                  \
+        : mean [0:(M + 1)], stddev [0:(M + 1)])                                \
+        map(from                                                               \
+            : symmat [0:(M + 1) * (N + 1)])
+    {
+
+        // Determine mean of column vectors of input data matrix
+#pragma omp target teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE_1)
 #pragma omp distribute parallel for private(j, i)
-    for (j = 1; j < (M + 1); j++) {
-        mean[j] = 0.0;
-
-        for (i = 1; i < (N + 1); i++) {
-            mean[j] += data[i * (M + 1) + j];
-        }
-
-        mean[j] /= (DATA_TYPE)FLOAT_N;
-    }
-
-    // Determine standard deviations of column vectors of data matrix.
-#pragma omp target map(to: mean[0:(M + 1)], data[0:(M + 1) * (N + 1)]) \
-                   map(from: stddev[0: (M + 1)])
-#pragma omp teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE_2)
-#pragma omp distribute parallel for private(j, i)
-    for (j = 1; j < (M + 1); j++) {
-        stddev[j] = 0.0;
-
-        for (i = 1; i < (N + 1); i++) {
-            stddev[j] += (data[i * (M + 1) + j] - mean[j]) *
-                         (data[i * (M + 1) + j] - mean[j]);
-        }
-
-        stddev[j] /= FLOAT_N;
-        stddev[j] = sqrt_of_array_cell(stddev, j);
-        stddev[j] = stddev[j] <= EPS ? 1.0 : stddev[j];
-    }
-
-    // Center and reduce the column vectors.
-#pragma omp target map(to: mean[0:(M + 1)], stddev[0:(M + 1)]) \
-                   map(tofrom: data[0 : (M + 1) * (N + 1)])
-#pragma omp teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE_3)
-#pragma omp distribute parallel for collapse(2) private(i, j)
-    for (i = 1; i < (N + 1); i++) {
         for (j = 1; j < (M + 1); j++) {
-            data[i * (M + 1) + j] -= mean[j];
-            data[i * (M + 1) + j] /= (sqrt(FLOAT_N) * stddev[j]);
+            mean[j] = 0.0;
+
+            for (i = 1; i < (N + 1); i++) {
+                mean[j] += data[i * (M + 1) + j];
+            }
+
+            mean[j] /= (DATA_TYPE)FLOAT_N;
         }
-    }
 
-    // Calculate the m * m correlation matrix.
-    // This loop is altered 
-#pragma omp target map(to: data[0: (M + 1) * (N + 1)]) \
-                   map(from: symmat[0: (M + 1) * (N + 1)])
-#pragma omp teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE_4)
+        // Determine standard deviations of column vectors of data matrix.
+#pragma omp target teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE_2)
+#pragma omp distribute parallel for private(j, i)
+        for (j = 1; j < (M + 1); j++) {
+            stddev[j] = 0.0;
+
+            for (i = 1; i < (N + 1); i++) {
+                stddev[j] += (data[i * (M + 1) + j] - mean[j]) *
+                             (data[i * (M + 1) + j] - mean[j]);
+            }
+
+            stddev[j] /= FLOAT_N;
+            stddev[j] = sqrt_of_array_cell(stddev, j);
+            stddev[j] = stddev[j] <= EPS ? 1.0 : stddev[j];
+        }
+
+        // Center and reduce the column vectors.
+#pragma omp target teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE_3)
+#pragma omp distribute parallel for collapse(2) private(i, j)
+        for (i = 1; i < (N + 1); i++) {
+            for (j = 1; j < (M + 1); j++) {
+                data[i * (M + 1) + j] -= mean[j];
+                data[i * (M + 1) + j] /= (sqrt(FLOAT_N) * stddev[j]);
+            }
+        }
+
+        // Calculate the m * m correlation matrix.
+        // Original loop. Cannot be collapsed.
+//#pragma omp target teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE_4)
+//#pragma omp distribute parallel for private(j1, j2, i)
+//        for (j1 = 1; j1 < (M + 1); j1++) {
+//            symmat[j1 * (M + 1) + j1] = 1.0;
+//
+//            for (j2 = j1 + 1; j2 < (M + 1); j2++) {
+//                symmat[j1 * (M + 1) + j2] = 0.0;
+//
+//                for (i = 1; i < (N + 1); i++) {
+//                    symmat[j1 * (M + 1) + j2] +=
+//                        (data[i * (M + 1) + j1] * data[i * (M + 1) + j2]);
+//                }
+//
+//                symmat[j2 * (M + 1) + j1] = symmat[j1 * (M + 1) + j2];
+//            }
+//        }
+
+        // flattened loop
+#pragma omp target teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE_4)
 #pragma omp distribute parallel for collapse(2) private(j1, j2, i)
-    for (j1 = 1; j1 < (M + 1); j1++) {
-        //symmat[j1 * (M + 1) + j1] = 1.0;
+        for (j1 = 1; j1 < (M + 1); j1++) {
+            for (j2 = 1; j2 < (M + 1); j2++) {
+                if (j1 == j2) {
+                    symmat[j1 * (M + 1) + j1] = 1.0;
+                } else {
+                    symmat[j1 * (M + 1) + j2] = 0.0;
 
-        for (j2 = 1; j2 < (M + 1); j2++) {
-            if (j1 == j2) {
-                symmat[j1 * (M + 1) + j2] = 1.0;
-            } else {
-                symmat[j1 * (M + 1) + j2] = 0.0;
-
-                for (i = 1; i < (N + 1); i++) {                    
-                    symmat[j1 * (M + 1) + j2] +=
-                        (data[i * (M + 1) + j1] * data[i * (M + 1) + j2]);
+                    for (i = 1; i < (N + 1); i++) {
+                        symmat[j1 * (M + 1) + j2] +=
+                            (data[i * (M + 1) + j1] * data[i * (M + 1) + j2]);
+                    }
                 }
-
-                //symmat[j2 * (M + 1) + j1] = symmat[j1 * (M + 1) + j2];
             }
         }
     }
@@ -212,8 +227,8 @@ void compareResults(DATA_TYPE *symmat, DATA_TYPE *symmat_outputFromOmp) {
                             symmat_outputFromOmp[i * (N + 1) + j]) >
                 PERCENT_DIFF_ERROR_THRESHOLD) {
                 fail++;
-                printf("i: %d j: %d\n1: %.15f 2: %.15f\n", i, j, symmat[i * N + j],
-                       symmat_outputFromOmp[i * N + j]);
+                printf("i: %d j: %d\n1: %.15f 2: %.15f\n", i, j,
+                       symmat[i * N + j], symmat_outputFromOmp[i * N + j]);
             }
         }
     }
@@ -248,6 +263,7 @@ int main() {
     t_end = rtclock();
     fprintf(stdout, "OMP Runtime: %0.6lfs\n", t_end - t_start);
 
+#ifdef RUN_TEST
     init_arrays(data);
     t_start = rtclock();
     correlation(data, mean, stddev, symmat);
@@ -256,6 +272,7 @@ int main() {
     fprintf(stdout, "CPU Runtime: %0.6lfs\n", t_end - t_start);
 
     compareResults(symmat, symmat_outputFromOmp);
+#endif
 
     free(data);
     free(mean);
