@@ -197,6 +197,7 @@ int main() {
     t_end = rtclock();
     fprintf(stdout, "OMP Runtime: %0.6lfs\n", t_end - t_start);
 
+#ifdef RUN_TEST
     init_arrays(data);
     t_start = rtclock();
     covariance(data, symmat, mean);
@@ -204,6 +205,7 @@ int main() {
     fprintf(stdout, "CPU Runtime: %0.6lfs\n", t_end - t_start);
 
     compareResults(symmat, symmat_outputFromOmp);
+#endif
 
     free(data);
     free(symmat);
