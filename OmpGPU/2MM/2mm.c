@@ -37,7 +37,7 @@
 
 /* Number of teams and team sizes */
 #define NUM_TEAMS 256
-#define TEAM_SIZES 256
+#define TEAM_SIZE 256
 
 /* Can switch DATA_TYPE between float and double */
 typedef float DATA_TYPE;
@@ -118,29 +118,29 @@ void mm2_omp(DATA_TYPE *A, DATA_TYPE *B, DATA_TYPE *C, DATA_TYPE *D,
     int i, j, k;
 
 #pragma omp target map(to                                                      \
-                       : A [0:NI * NK], B [0:NK * NJ], D [0:NJ * NL])          \
-    map(tofrom                                                                 \
-        : C [0:NI * NJ]) map(from                                              \
-                             : E [0:NI * NL])
-#pragma omp teams 
-    {
+                       : A [0:NI * NK], B [0:NK * NJ]) map(tofrom              \
+                                                           : C [0:NI * NJ])
+#pragma omp teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
 #pragma omp distribute parallel for private(i, j, k) collapse(2)
-        for (i = 0; i < NI; i++) {
-            for (j = 0; j < NJ; j++) {
-                C[i * NJ + j] = 0.0;
-                for (k = 0; k < NK; ++k) {
-                    C[i * NJ + j] += A[i * NK + k] * B[k * NJ + j];
-                }
+    for (i = 0; i < NI; i++) {
+        for (j = 0; j < NJ; j++) {
+            C[i * NJ + j] = 0.0;
+            for (k = 0; k < NK; ++k) {
+                C[i * NJ + j] += A[i * NK + k] * B[k * NJ + j];
             }
         }
+    }
 
+#pragma omp target map(to                                                      \
+                       : D [0:NJ * NL]) map(tofrom                             \
+                                            : C [0:NI * NJ], E [0:NI * NJ])
+#pragma omp teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
 #pragma omp distribute parallel for private(i, j, k) collapse(2)
-        for (i = 0; i < NI; i++) {
-            for (j = 0; j < NL; j++) {
-                E[i * NL + j] = 0.0;
-                for (k = 0; k < NJ; ++k) {
-                    E[i * NL + j] += C[i * NJ + k] * D[k * NL + j];
-                }
+    for (i = 0; i < NI; i++) {
+        for (j = 0; j < NL; j++) {
+            E[i * NL + j] = 0.0;
+            for (k = 0; k < NJ; ++k) {
+                E[i * NL + j] += C[i * NJ + k] * D[k * NL + j];
             }
         }
     }
