@@ -177,6 +177,7 @@ int main() {
     t_end = rtclock();
     fprintf(stdout, "OMP Runtime: %0.6lfs\n", t_end - t_start);
 
+#ifdef RUN_TEST
     init_arrays(_fict_, ex, ey, hz);
     t_start = rtclock();
     runFdtd(_fict_, ex, ey, hz);
@@ -185,6 +186,7 @@ int main() {
     fprintf(stdout, "CPU Runtime: %0.6lfs\n", t_end - t_start);
 
     compareResults(hz, hz_outputFromOmp);
+#endif
 
     free(_fict_);
     free(ex);
