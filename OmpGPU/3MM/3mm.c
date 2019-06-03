@@ -130,10 +130,13 @@ void mm3_omp(DATA_TYPE *A, DATA_TYPE *B, DATA_TYPE *C, DATA_TYPE *D,
              DATA_TYPE *E, DATA_TYPE *F, DATA_TYPE *G) {
 
     int i, j, k;
-    
+
     /* E := A*B */
-#pragma omp target map(to : A [0:NI * NK], B [0:NK * NJ]) map(from: E[0 : NI * NJ]) 
-#pragma omp teams distribute parallel for collapse(2) private(i, j, k) 
+#pragma omp target map(to                                                      \
+                       : A [0:NI * NK], B [0:NK * NJ]) map(from                \
+                                                           : E [0:NI * NJ])
+#pragma omp teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
+#pragma omp distribute parallel for collapse(2) private(i, j, k)
     for (i = 0; i < NI; i++) {
         for (j = 0; j < NJ; j++) {
             E[i * NJ + j] = 0;
@@ -144,8 +147,11 @@ void mm3_omp(DATA_TYPE *A, DATA_TYPE *B, DATA_TYPE *C, DATA_TYPE *D,
     }
 
     /* F := C*D */
-#pragma omp target map(to: C[0:NJ * NM], D[0:NM * NL]) map(from: F[0:NJ * NL])
-#pragma omp teams distribute parallel for collapse(2) private(i, j, k) 
+#pragma omp target map(to                                                      \
+                       : C [0:NJ * NM], D [0:NM * NL]) map(from                \
+                                                           : F [0:NJ * NL])
+#pragma omp teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
+#pragma omp distribute parallel for collapse(2) private(i, j, k)
     for (i = 0; i < NJ; i++) {
         for (j = 0; j < NL; j++) {
             F[i * NL + j] = 0;
@@ -156,8 +162,11 @@ void mm3_omp(DATA_TYPE *A, DATA_TYPE *B, DATA_TYPE *C, DATA_TYPE *D,
     }
 
     /* G := E*F */
-#pragma omp target map(tofrom: E[0:NI * NJ], F[0:NJ * NL]) map(from: G[0 : NI * NL])
-#pragma omp teams distribute parallel for collapse(2) private(i, j, k)
+#pragma omp target map(tofrom                                                  \
+                       : E [0:NI * NJ], F [0:NJ * NL]) map(from                \
+                                                           : G [0:NI * NL])
+#pragma omp teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
+#pragma omp distribute parallel for collapse(2) private(i, j, k)
     for (i = 0; i < NI; i++) {
         for (j = 0; j < NL; j++) {
             G[i * NL + j] = 0;
