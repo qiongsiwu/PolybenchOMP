@@ -163,11 +163,13 @@ int main(int argc, char *argv[]) {
     t_end = rtclock();
     fprintf(stdout, "OMP Runtime: %0.6lfs\n", t_end - t_start); //);
 
+#ifdef RUN_TEST
     t_start = rtclock();
     conv2D(A, B);
     t_end = rtclock();
     fprintf(stdout, "CPU Runtime: %0.6lfs\n", t_end - t_start); //);
     compareResults(B, B_outputFromOMP);
+#endif
 
     free(A);
     free(B);
