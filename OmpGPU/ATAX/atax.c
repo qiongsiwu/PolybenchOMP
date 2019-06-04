@@ -89,24 +89,26 @@ void atax_cpu(DATA_TYPE *A, DATA_TYPE *x, DATA_TYPE *y, DATA_TYPE *tmp) {
 }
 
 void atax_omp(DATA_TYPE *A, DATA_TYPE *x, DATA_TYPE *y, DATA_TYPE *tmp) {
-
-#pragma omp target map(to: A[0: NX * NY], x[0:NY]) map(tofrom: tmp[0: NX])
-#pragma omp teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
+#pragma omp target data map(to: A[0: NX * NY], x[0:NY]) \
+                        map(alloc: tmp[0: NX]) \
+                        map(from: y[0: NY])
+    {
+#pragma omp target teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
 #pragma omp distribute parallel for
-    for (int i = 0; i < NX; i++) {
-        tmp[i] = 0; 
-        for (int j = 0; j < NY; j++) {
-            tmp[i] += A[i * NY + j] * x[j]; 
-        }
-    }
-
-#pragma omp target map(to: A[0: NX * NY], tmp[0:NX]) map(tofrom: y[0: NY])
-#pragma omp teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
-#pragma omp distribute parallel for
-    for (int j = 0; j < NY; j++) {
-        y[j] = 0; 
         for (int i = 0; i < NX; i++) {
-            y[j] = y[j] + A[i * NY + j] * tmp[i];
+            tmp[i] = 0;
+            for (int j = 0; j < NY; j++) {
+                tmp[i] += A[i * NY + j] * x[j];
+            }
+        }
+
+#pragma omp target teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
+#pragma omp distribute parallel for
+        for (int j = 0; j < NY; j++) {
+            y[j] = 0;
+            for (int i = 0; i < NX; i++) {
+                y[j] = y[j] + A[i * NY + j] * tmp[i];
+            }
         }
     }
 }
