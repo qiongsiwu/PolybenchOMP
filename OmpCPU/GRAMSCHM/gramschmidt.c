@@ -26,7 +26,7 @@
 #define GPU_DEVICE 0
 
 /* Problem size */
-#define SIZE 2048
+#define SIZE 64 //2048
 #define M SIZE
 #define N SIZE
 
@@ -68,7 +68,9 @@ void gramschmidt_omp(DATA_TYPE *A, DATA_TYPE *R, DATA_TYPE *Q) {
     DATA_TYPE nrm;
     for (k = 0; k < N; k++) {
         nrm = 0;
-#pragma omp parallel for private(i) reduction(+:nrm)
+        
+        // Parallel reduction does not seem to work in this case. 
+//#pragma omp parallel for private(i) reduction(+:nrm)
         for (i = 0; i < M; i++) {
             nrm += A[i * N + k] * A[i * N + k];
         }
@@ -97,7 +99,10 @@ void init_array(DATA_TYPE *A) {
 
     for (i = 0; i < M; i++) {
         for (j = 0; j < N; j++) {
-            A[i * N + j] = ((DATA_TYPE)(i + 1) * (j + 1)) / (M + 1);
+            // Use j_pad to shuffle around to avoid 
+            // initializing to a non-invertible matrix. 
+            int j_pad = (j + i) % N; 
+            A[i * N + j_pad] = ((DATA_TYPE)(i + 1) * (j + 1)) / (M + 1);
         }
     }
 }
