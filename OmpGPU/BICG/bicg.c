@@ -136,40 +136,44 @@ void bicg_omp(DATA_TYPE* A, DATA_TYPE* r, DATA_TYPE* s, DATA_TYPE* p,
               DATA_TYPE* q) {
     int i, j;
 
-    for (j = 0; j < NY; j++) {
-        s[j] = 0; 
-    }
 
     // The loop below has better locality access for A but the outer loop
     // cannot be parallalized because it causes race condition on s[j]
-/*#pragma omp target map(tofrom: s[0:NY]) map(to: r[0:NX], A[0:NX * NY])
-#pragma omp teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE) private(i)
-    for (i = 0; i < NX; i++) {
+    // This way of doing it is probably better on a CPU. 
+//    for (j = 0; j < NY; j++) {
+//        s[j] = 0; 
+//    }
+//#pragma omp target map(tofrom: s[0:NY]) map(to: r[0:NX], A[0:NX * NY])
+//#pragma omp teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE) private(i)
+//    for (i = 0; i < NX; i++) {
+//#pragma omp distribute parallel for private(j)
+//        for (j = 0; j < NY; j++) {
+//            s[j] = s[j] + r[i] * A[i * NY + j]; 
+//        }
+//    }
+
+#pragma omp target data map(tofrom: s[0:NY], q[0:NX]) \
+                        map(to: A[0:NX * NY], r[0:NX], p[0:NY])
+    {
+
+        // The loop below does not suffer from race conditions but has terrible
+        // access pattern. Because it utilizes the threads on the GPU better,
+        // this loop has better performance on the GPU.
+#pragma omp target teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
 #pragma omp distribute parallel for private(j)
         for (j = 0; j < NY; j++) {
-            s[j] = s[j] + r[i] * A[i * NY + j]; 
+            for (i = 0; i < NX; i++) {
+                s[j] = s[j] + r[i] * A[i * NY + j];
+            }
         }
-    }*/
 
-    // The loop below does not suffer from race conditions but has terrible
-    // access pattern. Because it utilizes the threads on the GPU better, 
-    // this loop has better performance on the GPU. 
-#pragma omp target map(tofrom: s[0:NY]) map(to: r[0:NX], A[0:NX * NY])
-#pragma omp teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
-#pragma omp distribute parallel for private(j)
-    for (j = 0; j < NY; j++) {
-        for (i = 0; i < NX; i++) {
-            s[j] = s[j] + r[i] * A[i * NY + j]; 
-        }
-    }
-
-#pragma omp target map(tofrom: q[0:NX]) map(to: p[0:NY], A[0:NX * NY])
-#pragma omp teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
+#pragma omp target teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
 #pragma omp distribute parallel for private(i, j)
-    for (i = 0; i < NX; i++) {
-        q[i] = 0.0;
-        for (j = 0; j < NY; j++) {
-            q[i] = q[i] + A[i * NY + j] * p[j];
+        for (i = 0; i < NX; i++) {
+            q[i] = 0.0;
+            for (j = 0; j < NY; j++) {
+                q[i] = q[i] + A[i * NY + j] * p[j];
+            }
         }
     }
 }
