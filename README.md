@@ -43,5 +43,5 @@ make install -j16
 
 ### CMake Options ###
  - `RUN_OFFLOAD_GPU` default is on. This option turns on building for nvptx target offloading. 
- - `RUN_TEST` default is off. When turned on, the benchmarks compare results with a servial version of the algorithm. 
+ - `RUN_TEST` default is off. When turned on, the benchmarks compare results with a servial version of the algorithm. For now this option is only controlling OMPGPU targets. OMPCPU always have the test code on. 
  
