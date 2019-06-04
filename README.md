@@ -48,4 +48,5 @@ make install -j16
 ### Known Limitations ###
  - Running on Windows is neither tested nor supported. 
  - Target offloading is not supported on macOS. 
+ - cmake may fail on when running for the first time on macOS. Rerun should solve the problem. 
  
