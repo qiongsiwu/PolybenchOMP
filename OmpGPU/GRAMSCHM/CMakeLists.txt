@@ -9,4 +9,4 @@ add_executable(GRAMSCHM_T ${SRC_FILES})
 
 target_link_libraries(GRAMSCHM_T m)
 
-install(TARGETS GRAMSCHM_T DESTINATION OMPCPU)
+install(TARGETS GRAMSCHM_T DESTINATION OMPGPU)
