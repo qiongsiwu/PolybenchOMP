@@ -26,7 +26,7 @@
 #define GPU_DEVICE 0
 
 /* Problem size */
-#define SIZE 64 //2048
+#define SIZE 2048
 #define M SIZE
 #define N SIZE
 
