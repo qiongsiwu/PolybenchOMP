@@ -96,40 +96,44 @@ void runFdtd_omp(DATA_TYPE* _fict_, DATA_TYPE* ex, DATA_TYPE* ey, DATA_TYPE* hz)
 #pragma omp target data map(to: _fict_[0:tmax]) \
                         map(tofrom: ex[0: NX * (NY + 1)], ey[0: (NX + 1) * NY]) \
                         map(tofrom: hz[0 : NX * NY])
-    for (t = 0; t < tmax; t++) {
+    {
+        for (t = 0; t < tmax; t++) {
 #pragma omp target teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
 #pragma omp distribute parallel for private(j)
-        for (j = 0; j < NY; j++) {
-            ey[0 * NY + j] = _fict_[t];
-        }
-
-#pragma omp target teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
-#pragma omp distribute parallel for private(i, j) collapse(2)
-        for (i = 1; i < NX; i++) {
             for (j = 0; j < NY; j++) {
-                ey[i * NY + j] = ey[i * NY + j] -
-                                 0.5 * (hz[i * NY + j] - hz[(i - 1) * NY + j]);
+                ey[0 * NY + j] = _fict_[t];
             }
-        }
 
 #pragma omp target teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
 #pragma omp distribute parallel for private(i, j) collapse(2)
-        for (i = 0; i < NX; i++) {
-            for (j = 1; j < NY; j++) {
-                ex[i * (NY + 1) + j] =
-                    ex[i * (NY + 1) + j] -
-                    0.5 * (hz[i * NY + j] - hz[i * NY + (j - 1)]);
+            for (i = 1; i < NX; i++) {
+                for (j = 0; j < NY; j++) {
+                    ey[i * NY + j] =
+                        ey[i * NY + j] -
+                        0.5 * (hz[i * NY + j] - hz[(i - 1) * NY + j]);
+                }
             }
-        }
 
 #pragma omp target teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
 #pragma omp distribute parallel for private(i, j) collapse(2)
-        for (i = 0; i < NX; i++) {
-            for (j = 0; j < NY; j++) {
-                hz[i * NY + j] =
-                    hz[i * NY + j] -
-                    0.7 * (ex[i * (NY + 1) + (j + 1)] - ex[i * (NY + 1) + j] +
-                           ey[(i + 1) * NY + j] - ey[i * NY + j]);
+            for (i = 0; i < NX; i++) {
+                for (j = 1; j < NY; j++) {
+                    ex[i * (NY + 1) + j] =
+                        ex[i * (NY + 1) + j] -
+                        0.5 * (hz[i * NY + j] - hz[i * NY + (j - 1)]);
+                }
+            }
+
+#pragma omp target teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
+#pragma omp distribute parallel for private(i, j) collapse(2)
+            for (i = 0; i < NX; i++) {
+                for (j = 0; j < NY; j++) {
+                    hz[i * NY + j] =
+                        hz[i * NY + j] -
+                        0.7 *
+                            (ex[i * (NY + 1) + (j + 1)] - ex[i * (NY + 1) + j] +
+                             ey[(i + 1) * NY + j] - ey[i * NY + j]);
+                }
             }
         }
     }
