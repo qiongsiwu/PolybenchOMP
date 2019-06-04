@@ -60,4 +60,7 @@ if (OPENMP_FOUND)
 endif(OPENMP_FOUND)
 
 add_subdirectory(OmpCPU)
-add_subdirectory(OmpGPU)
+if (UNIX AND NOT APPLE)
+	# target offloading is only supported on linux
+	add_subdirectory(OmpGPU)
+endif()
