@@ -129,12 +129,9 @@ void correlation_omp(DATA_TYPE *data, DATA_TYPE *mean, DATA_TYPE *stddev,
                      DATA_TYPE *symmat) {
     int i, j, j1, j2;
 
-#pragma omp target data map(to                                                 \
-                            : data [0:(M + 1) * (N + 1)])                      \
-    map(alloc                                                                  \
-        : mean [0:(M + 1)], stddev [0:(M + 1)])                                \
-        map(from                                                               \
-            : symmat [0:(M + 1) * (N + 1)])
+#pragma omp target data map(to: data[0:(M + 1) * (N + 1)])             \
+                        map(alloc: mean[0:(M + 1)], stddev[0:(M + 1)]) \
+                        map(from: symmat[0:(M + 1) * (N + 1)])
     {
 
         // Determine mean of column vectors of input data matrix
