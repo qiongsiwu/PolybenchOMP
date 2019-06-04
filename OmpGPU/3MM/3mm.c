@@ -131,47 +131,44 @@ void mm3_omp(DATA_TYPE *A, DATA_TYPE *B, DATA_TYPE *C, DATA_TYPE *D,
 
     int i, j, k;
 
-    /* E := A*B */
-#pragma omp target map(to                                                      \
-                       : A [0:NI * NK], B [0:NK * NJ]) map(from                \
-                                                           : E [0:NI * NJ])
-#pragma omp teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
+#pragma omp target data map(to: A[0:NI * NK], B[0:NK * NJ]) \
+                        map(to: C[0:NJ * NM], D[0:NM * NL]) \
+                        map(alloc: E[0:NI * NJ], F[0:NJ * NL]) \
+                        map(from: G[0:NI * NL])
+    {
+        /* E := A*B */
+#pragma omp target teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
 #pragma omp distribute parallel for collapse(2) private(i, j, k)
-    for (i = 0; i < NI; i++) {
-        for (j = 0; j < NJ; j++) {
-            E[i * NJ + j] = 0;
-            for (k = 0; k < NK; ++k) {
-                E[i * NJ + j] += A[i * NK + k] * B[k * NJ + j];
+        for (i = 0; i < NI; i++) {
+            for (j = 0; j < NJ; j++) {
+                E[i * NJ + j] = 0;
+                for (k = 0; k < NK; ++k) {
+                    E[i * NJ + j] += A[i * NK + k] * B[k * NJ + j];
+                }
             }
         }
-    }
 
-    /* F := C*D */
-#pragma omp target map(to                                                      \
-                       : C [0:NJ * NM], D [0:NM * NL]) map(from                \
-                                                           : F [0:NJ * NL])
-#pragma omp teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
+        /* F := C*D */
+#pragma omp target teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
 #pragma omp distribute parallel for collapse(2) private(i, j, k)
-    for (i = 0; i < NJ; i++) {
-        for (j = 0; j < NL; j++) {
-            F[i * NL + j] = 0;
-            for (k = 0; k < NM; ++k) {
-                F[i * NL + j] += C[i * NM + k] * D[k * NL + j];
+        for (i = 0; i < NJ; i++) {
+            for (j = 0; j < NL; j++) {
+                F[i * NL + j] = 0;
+                for (k = 0; k < NM; ++k) {
+                    F[i * NL + j] += C[i * NM + k] * D[k * NL + j];
+                }
             }
         }
-    }
 
-    /* G := E*F */
-#pragma omp target map(tofrom                                                  \
-                       : E [0:NI * NJ], F [0:NJ * NL]) map(from                \
-                                                           : G [0:NI * NL])
-#pragma omp teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
+        /* G := E*F */
+#pragma omp target teams num_teams(NUM_TEAMS) thread_limit(TEAM_SIZE)
 #pragma omp distribute parallel for collapse(2) private(i, j, k)
-    for (i = 0; i < NI; i++) {
-        for (j = 0; j < NL; j++) {
-            G[i * NL + j] = 0;
-            for (k = 0; k < NJ; ++k) {
-                G[i * NL + j] += E[i * NJ + k] * F[k * NL + j];
+        for (i = 0; i < NI; i++) {
+            for (j = 0; j < NL; j++) {
+                G[i * NL + j] = 0;
+                for (k = 0; k < NJ; ++k) {
+                    G[i * NL + j] += E[i * NJ + k] * F[k * NL + j];
+                }
             }
         }
     }
